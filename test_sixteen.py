@@ -3,7 +3,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 #driver = webdriver.Chrome(ChromeDriverManager().install())
 #driver = webdriver.Chrome('/var/lib/jenkins/.local/bin/chromedriver-path')
-driver = webdriver.Chrome('/var/lib/jenkins/.local/lib/python3.8/site-packages/chromedriver_binary/chromedriver')
+driver = webdriver.Chrome('/var/lib/jenkins/.local/lib/python3.8/site-packages/chromedriver_binary/')
 new_user_name = "rando"
 new_user_email = "aa@aa.com"
 updated_name = "ololo"
