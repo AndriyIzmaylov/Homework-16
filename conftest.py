@@ -1,6 +1,5 @@
 import pytest
 import json
-import os
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -9,21 +8,20 @@ from pathlib import Path
 project_pass = Path.cwd()
 file_pass = project_pass.joinpath("creds.json")
 
+
 @pytest.fixture()
 def cred_file():
     # take admin credentials
     with open(file_pass, "r") as f:
         login_variables = json.load(f)
-        admin_name = login_variables["admin_login"]
-        admin_password = login_variables["admin_password"]
-        return admin_name, admin_password
+        return login_variables
+
 
 @pytest.fixture(scope="session", autouse=True)
-def sesion_class():
+def file_browser_open_docker_close():
     # Open file with data
     with open(file_pass, "r") as f:
         login_variables = json.load(f)
-
 
     port = 4488
 
@@ -46,43 +44,40 @@ def sesion_class():
     pytest.driver.close()
 
 
-
-# @pytest.fixture(scope="function", autouse=True)
-# def login_logout_func(request):
-#     # Login as admin
-#     username = pytest.driver.find_element(By.XPATH, LoginPage.username_id)
-#     password = pytest.driver.find_element(By.XPATH, LoginPage.pswd_id)
-#     btn = pytest.driver.find_element(By.XPATH, LoginPage.submit_btn)
-#
-#     username.send_keys(pytest.secret_variables["adm_name"])
-#     password.send_keys(pytest.secret_variables["adm_password"])
-#     btn.click()
-#
-#     # variable needed for determine only failed tests
-#     failed_before = request.session.testsfailed
-#
-#     yield
-#     # if test failed add screenshot to allure report
-#     if request.session.testsfailed != failed_before:
-#         allure.attach(pytest.driver.get_screenshot_as_png(), name="Screen_for_failed",
-#                       attachment_type=AttachmentType.PNG)
-#         time.sleep(3)
-#
-#     # logout
-#     logout = pytest.driver.find_element(By.XPATH, AdminPage.logout_id)
-#     logout.click()
-#     time.sleep(2)
-#     log_again = pytest.driver.find_element(By.XPATH, AdminPage.log_again_id)
-#     log_again.click()
-
-# @pytest.fixture(scope="function", autouse=True)
-# def login_into_the_system():
-#     pytest.driver.get("https://www.aqa.science/api-auth/login/?next=/")
-#     login_field = pytest.driver.find_element(By.XPATH, '//*[@id="id_username"]')
-#     password_field = pytest.driver.find_element(By.XPATH, '//*[@id="id_password"]')
-#     login_button = pytest.driver.find_element(By.XPATH, '//*[@id="submit-id-submit"]')
-#     login_field.send_keys(pytest.creds.admin_login)
-#     password_field.send_keys(pytest.creds.admin_password)
-#     login_button.click()
+@pytest.fixture()
+def login_logout_system(cred_file):
+    pytest.driver.get("https://www.aqa.science/api-auth/login/?next=/")
+    login_field = pytest.driver.find_element(By.XPATH, '//*[@id="id_username"]')
+    password_field = pytest.driver.find_element(By.XPATH, '//*[@id="id_password"]')
+    login_button = pytest.driver.find_element(By.XPATH, '//*[@id="submit-id-submit"]')
+    login_field.send_keys(cred_file["admin_login"])
+    password_field.send_keys(cred_file["admin_password"])
+    login_button.click()
+    yield
+    pytest.driver.find_element(By.XPATH, '//*[@id="content"]/div[1]/button').click()
+    pytest.driver.find_element(By.XPATH, '//*[@id="deleteModal"]/div/div/div[2]/form/button').submit()
+    pytest.driver.get("https://www.aqa.science/api-auth/logout/?next=/users/")
 
 
+@pytest.fixture()
+def check_create_user(cred_file):
+    pytest.driver.get("https://www.aqa.science/users")
+    number = 0
+    userName_field = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[1]/div/input')
+    userEmail_field = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[2]/div/input')
+    createUserButton = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[4]/button')
+    userName_field.send_keys(cred_file["new_user_name"])
+    userEmail_field.send_keys(cred_file["new_user_email"])
+    createUserButton.click()
+    status_by_xpath_from_response = pytest.driver.find_element(By.XPATH,
+                                                               '//*[@id="content"]/div[2]/div[4]/pre/span[1]/b[1]').text
+    while status_by_xpath_from_response != "HTTP 201 Created":
+        number += 1
+        userName_field = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[1]/div/input')
+        userEmail_field = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[2]/div/input')
+        createUserButton = pytest.driver.find_element(By.XPATH, '//*[@id="post-object-form"]/form/fieldset/div[4]/button')
+        userName_field.send_keys(f'{cred_file["new_user_name"]}{number}')
+        userEmail_field.send_keys(cred_file["new_user_email"])
+        createUserButton.click()
+        status_by_xpath_from_response = pytest.driver.find_element(By.XPATH, '//*[@id="content"]/div[2]/div[4]/pre/span[1]/b[1]').text
+    return status_by_xpath_from_response
